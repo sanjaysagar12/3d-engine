@@ -1,12 +1,18 @@
 {
   "garment": "aaron",
-  "version": "1.0",
-  "description": "Stitching instructions for front and back panels",
+  "version": "1.3-alignment-added",
+  "description": "Stitching instructions for front, back, and mirrored panels",
+  "alignment": {
+    "front": "FRONT_RIGHT",
+    "front_mirror": "FRONT_LEFT",
+    "back": "BACK_RIGHT",
+    "back_mirror": "BACK_LEFT"
+  },
   "seams": [
     {
       "seam_id": "S1",
-      "label": "Front Center Fold / Side Left Edge",
-      "description": "Stitch the left edge of front panel to left edge of front mirror panel (center front seam)",
+      "label": "Front to Front Mirror",
+      "description": "Stitch front panel to front mirror panel",
       "from": {
         "piece_a": "front",
         "point_a": "pt-0",
@@ -22,87 +28,87 @@
     },
     {
       "seam_id": "S2",
-      "label": "Back Center Fold / Side Left Edge",
-      "description": "Stitch the left edge of back panel to left edge of back mirror panel (center back seam)",
+      "label": "Back to Back Mirror",
+      "description": "Stitch back panel to back mirror panel",
       "from": {
         "piece_a": "back",
         "point_a": "pt-12",
         "piece_b": "back_mirror",
-        "point_b": "pt-12"
+        "point_b": "pt-1"
       },
       "to": {
         "piece_a": "back",
         "point_a": "pt-1",
         "piece_b": "back_mirror",
-        "point_b": "pt-11"
+        "point_b": "pt-12"
       }
     },
     {
       "seam_id": "S3",
-      "label": "Right Shoulder Seam",
-      "description": "Stitch the right shoulder of front panel to the right shoulder of back panel",
+      "label": "Shoulder: Back Mirror to Front Mirror",
+      "description": "Stitch back mirror shoulder to front mirror shoulder",
       "from": {
-        "piece_a": "front",
+        "piece_a": "back_mirror",
         "point_a": "pt-9",
-        "piece_b": "back",
-        "point_b": "pt-10"
+        "piece_b": "front_mirror",
+        "point_b": "pt-8"
       },
       "to": {
-        "piece_a": "front",
-        "point_a": "pt-8",
-        "piece_b": "back",
-        "point_b": "pt-8"
+        "piece_a": "back_mirror",
+        "point_a": "pt-11",
+        "piece_b": "front_mirror",
+        "point_b": "pt-10"
       }
     },
     {
       "seam_id": "S4",
-      "label": "Right Side Seam",
-      "description": "Stitch the right side seam of front panel to the right side seam of back panel",
+      "label": "Shoulder: Back to Front",
+      "description": "Stitch back shoulder to front shoulder",
       "from": {
-        "piece_a": "front",
-        "point_a": "pt-3",
-        "piece_b": "back",
-        "point_b": "pt-10"
+        "piece_a": "back",
+        "point_a": "pt-10",
+        "piece_b": "front",
+        "point_b": "pt-9"
       },
       "to": {
-        "piece_a": "front",
-        "point_a": "pt-4",
-        "piece_b": "back",
-        "point_b": "pt-5"
+        "piece_a": "back",
+        "point_a": "pt-8",
+        "piece_b": "front",
+        "point_b": "pt-8"
       }
     },
     {
       "seam_id": "S5",
-      "label": "Left Shoulder Seam (Mirror)",
-      "description": "Stitch the left shoulder of front mirror panel to the left shoulder of back mirror panel",
+      "label": "Side: Back to Front",
+      "description": "Stitch back side seam to front side seam",
       "from": {
-        "piece_a": "front_mirror",
-        "point_a": "pt-8",
-        "piece_b": "back_mirror",
-        "point_b": "pt-9"
+        "piece_a": "back",
+        "point_a": "pt-5",
+        "piece_b": "front",
+        "point_b": "pt-4"
       },
       "to": {
-        "piece_a": "front_mirror",
-        "point_a": "pt-10",
-        "piece_b": "back_mirror",
-        "point_b": "pt-11"
+        "piece_a": "back",
+        "point_a": "pt-2",
+        "piece_b": "front",
+        "point_b": "pt-2"
       }
     },
     {
       "seam_id": "S6",
-      "label": "Left Side Seam (Mirror)",
-      "description": "Stitch the left side seam of front panel to the left side seam of back panel",
+      "label": "Side: Back Mirror to Front Mirror",
+      "description": "Stitch back mirror side seam to front mirror side seam",
       "from": {
-        "piece_a": "front",
+        "piece_a": "back_mirror",
         "point_a": "pt-5",
-        "piece_b": "back",
-        "point_b": "pt-5"
+        "piece_b": "front_mirror",
+        "point_b": "pt-4"
       },
       "to": {
-        "piece_a": "front",
-        "point_a": "pt-2",
-        "piece_b": "back",
-        "point_b": "pt-2"
+        "piece_a": "back_mirror",
+        "point_a": "pt-4",
+        "piece_b": "front_mirror",
+        "point_b": "pt-3"
       }
     }
   ]

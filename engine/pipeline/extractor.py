@@ -15,15 +15,17 @@ class PieceExtractor:
         pieces = FreeSewingParser.parse(self.svg_path)
         os.makedirs(self.output_dir, exist_ok=True)
         
-        # Create png subdirectory
+        # Create subdirectories
+        svg_dir = os.path.join(self.output_dir, "svg")
         png_dir = os.path.join(self.output_dir, "png")
+        os.makedirs(svg_dir, exist_ok=True)
         os.makedirs(png_dir, exist_ok=True)
         
         metadata = {}
         for piece in pieces:
             # Render and save SVG (returns tuple: svg_content, points)
             svg_content, points = SVGRenderer.render_piece(piece)
-            out_file = os.path.join(self.output_dir, f"{piece.name}.svg")
+            out_file = os.path.join(svg_dir, f"{piece.name}.svg")
             with open(out_file, 'w', encoding='utf-8') as f:
                 f.write(svg_content)
             
@@ -31,9 +33,9 @@ class PieceExtractor:
             png_file = os.path.join(png_dir, f"{piece.name}.png")
             success = SVGConverter.svg_to_png(svg_content, png_file, dpi=96)
             if success:
-                print(f"  ✓ {piece.name}.svg → png/{piece.name}.png")
+                print(f"  [OK] {piece.name}.svg -> png/{piece.name}.png")
             else:
-                print(f"  ✗ Failed to convert {piece.name} to PNG")
+                print(f"  [ERROR] Failed to convert {piece.name} to PNG")
                 
             # Get vertices and merge point IDs into them
             vertices = piece.vertices()
@@ -56,7 +58,7 @@ class PieceExtractor:
                     "height": round(max_y - min_y, 4),
                 },
                 "vertices": vertices,
-                "output_file": f"{piece.name}.svg",
+                "output_file": f"svg/{piece.name}.svg",
                 "png_file": f"png/{piece.name}.png",
             }
             
