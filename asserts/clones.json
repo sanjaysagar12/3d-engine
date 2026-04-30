@@ -1,0 +1,30 @@
+{
+  "clones": [
+    {
+      "name": "front_mirror",
+      "source": "front",
+      "description": "Mirrored clone of front piece",
+      "mirror": {
+        "enabled": true,
+        "axis": "x",
+        "anchor_x": 120
+      }
+    },
+    {
+      "name": "back_mirror",
+      "source": "back",
+      "description": "Mirrored clone of back piece",
+      "mirror": {
+        "enabled": true,
+        "axis": "x",
+        "anchor_x": 120
+      }
+    }
+  ],
+  "metadata": {
+    "description": "Clone definitions with mirror operations for Freesewing Aaron patterns",
+    "project": "aaron",
+    "version": "1.0",
+    "notes": "Mirror operations are applied along the X axis at the specified anchor point"
+  }
+}
