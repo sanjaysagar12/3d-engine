@@ -2,6 +2,7 @@ import os
 import json
 from ..parser.freesewing_parser import FreeSewingParser
 from ..svg.renderer import SVGRenderer
+from ..svg.converter import SVGConverter
 
 class PieceExtractor:
     """Step 1: Extract and write standalone pieces from an SVG."""
@@ -14,6 +15,10 @@ class PieceExtractor:
         pieces = FreeSewingParser.parse(self.svg_path)
         os.makedirs(self.output_dir, exist_ok=True)
         
+        # Create png subdirectory
+        png_dir = os.path.join(self.output_dir, "png")
+        os.makedirs(png_dir, exist_ok=True)
+        
         metadata = {}
         for piece in pieces:
             # Render and save SVG (returns tuple: svg_content, points)
@@ -21,6 +26,14 @@ class PieceExtractor:
             out_file = os.path.join(self.output_dir, f"{piece.name}.svg")
             with open(out_file, 'w', encoding='utf-8') as f:
                 f.write(svg_content)
+            
+            # Convert SVG to PNG
+            png_file = os.path.join(png_dir, f"{piece.name}.png")
+            success = SVGConverter.svg_to_png(svg_content, png_file, dpi=96)
+            if success:
+                print(f"  ✓ {piece.name}.svg → png/{piece.name}.png")
+            else:
+                print(f"  ✗ Failed to convert {piece.name} to PNG")
                 
             # Get vertices and merge point IDs into them
             vertices = piece.vertices()
@@ -44,6 +57,7 @@ class PieceExtractor:
                 },
                 "vertices": vertices,
                 "output_file": f"{piece.name}.svg",
+                "png_file": f"png/{piece.name}.png",
             }
             
         meta_path = os.path.join(self.output_dir, "pieces_metadata.json")
