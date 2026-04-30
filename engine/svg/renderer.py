@@ -60,8 +60,8 @@ class SVGRenderer:
             # Draw background rect for label
             label_id = point["id"]
             points_svg += f'    <circle id="{label_id}" cx="{point["x"]:.2f}" cy="{point["y"]:.2f}" r="3.5" class="point" />\n'
-            # Add white background rectangle for text
-            points_svg += f'    <rect x="{point["x"]-5:.2f}" y="{point["y"]-4:.2f}" width="10" height="8" class="label-bg" />\n'
+            # Add white background rectangle for text (larger for 2+ digit IDs)
+            points_svg += f'    <rect x="{point["x"]-8:.2f}" y="{point["y"]-5:.2f}" width="16" height="10" class="label-bg" />\n'
             # Add text label
             points_svg += f'    <text x="{point["x"]:.2f}" y="{point["y"]:.2f}" class="point-label" dominant-baseline="middle">{label_id}</text>\n'
 
