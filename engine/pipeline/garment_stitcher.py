@@ -10,7 +10,7 @@ from .pieces_to_glb import _vertices_to_coords, _random_color
 class GarmentStitcher:
     """Pipeline step to assemble pattern pieces into a stitched 3D garment."""
     
-    def __init__(self, metadata_path: str, stitching_path: str, extrusion_height: float = 2.0, gap: float = 50.0):
+    def __init__(self, metadata_path: str, stitching_path: str, extrusion_height: float = 2.0, gap: float = 300.0):
         self.metadata_path = metadata_path
         self.stitching_path = stitching_path
         self.extrusion_height = extrusion_height
