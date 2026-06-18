@@ -3,10 +3,10 @@
   "version": "1.3-alignment-added",
   "description": "Stitching instructions for front, back, and mirrored panels",
   "alignment": {
-    "front": "FRONT_RIGHT",
-    "front_mirror": "FRONT_LEFT",
-    "back": "BACK_RIGHT",
-    "back_mirror": "BACK_LEFT"
+    "front": "AP_FRONT_RIGHT",
+    "front_mirror": "AP_FRONT_LEFT",
+    "back": "AP_BACK_RIGHT",
+    "back_mirror": "AP_BACK_LEFT"
   },
   "seams": [
     {

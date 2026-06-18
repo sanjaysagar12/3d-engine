@@ -6,3 +6,5 @@ cairosvg
 svgelements
 lxml
 pillow
+torch
+smplx
