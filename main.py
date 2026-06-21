@@ -87,41 +87,51 @@ def main():
         )
         scaler.run(scaled_out)
 
-        # 8. Export flat, open-boundary panels + seam point coordinates
+        # 8. Export flat panels — GarmentScaler uses a fixed 20 mm target cell
+        #    size for uniform mesh density across all panels.
         print(f"\n--- Step 7: Preparing Panels for Blender Stitching ---")
         panels_glb = os.path.join(output_dir, "garment_panels_flat.glb")
         seam_points_json = os.path.join(output_dir, "garment_seam_points.json")
         scaler.export_panels_for_stitching(panels_glb, seam_points_json)
 
-        # 9. Subdivide boundaries + sew panels together in Blender
         if os.path.exists(blender_exe):
+            # ── Simulation quality knobs (change these for quick iteration vs final) ──
+            sim_frames       = 15    # frames to simulate; increase to 150 for final
+            sewing_force_max = 15.0  # N; higher = seams close faster (good for low frame counts)
+            quality          = 10    # solver substeps per frame
+            mass             = 0.3   # kg per vertex
+
+            # Step 8: Blender call 1 — subdivide seam boundaries + bridge seams
+            #         + 2-cut wrinkle subdivision. Base mesh is already uniform
+            #         20 mm cells, so 2 cuts → ~7 mm final cloth resolution.
             print(f"\n--- Step 8: Stitching Garment in Blender ---")
             stitched_out = os.path.join(output_dir, "garment_stitched.glb")
-            blender_stitcher = BlenderStitcher(blender_exe=blender_exe, boundary_subdivide_cuts=8, wrinkle_subdivide_cuts=2)
+            blender_stitcher = BlenderStitcher(
+                blender_exe=blender_exe,
+                boundary_subdivide_cuts=8,
+                wrinkle_subdivide_cuts=2,
+            )
             blender_stitcher.run(
                 panels_glb=panels_glb,
                 seam_points_json=seam_points_json,
                 stitching_json=stitching_json,
                 out_glb=stitched_out,
             )
-            # 10. Run cloth simulation (sewing springs + collision) to drape
-            #     the garment onto the avatar
+
+            # Step 9: Blender call 2 — cloth simulation (sewing springs +
+            #         collision) to drape the stitched garment onto the avatar.
             print(f"\n--- Step 9: Draping Garment on Avatar (Cloth Sim) ---")
             draped_out = os.path.join(output_dir, "garment_draped.glb")
             draped_blend = os.path.join(output_dir, "garment_draped.blend")
             draper = ClothDraper(
                 blender_exe=blender_exe,
-                boundary_subdivide_cuts=8,
-                wrinkle_subdivide_cuts=2,
-                sim_frames=180,
-                sewing_force_max=3.0,
-                quality=20,
-                mass=0.3,
+                sim_frames=sim_frames,
+                sewing_force_max=sewing_force_max,
+                quality=quality,
+                mass=mass,
             )
             draper.run(
-                panels_glb=panels_glb,
-                seam_points_json=seam_points_json,
-                stitching_json=stitching_json,
+                stitched_glb=stitched_out,
                 avatar_obj=avatar_obj,
                 out_glb=draped_out,
                 blend_out=draped_blend,

@@ -224,9 +224,9 @@ def build_stitched_garment(
 ):
     """Import flat panels, join into one mesh, pre-subdivide boundary edges
     so each seam has many pull points, bridge each seam's boundary edges
-    into real sewing lines, then subdivide the whole mesh once more for
-    interior wrinkle resolution. Returns the merged 'garment' object (not
-    exported). Caller owns the scene."""
+    into real sewing lines, then subdivide the whole mesh into a fine
+    cloth grid (cloth_rows x cloth_cols) for smooth wrinkle simulation.
+    Returns the merged 'garment' object. Caller owns the scene."""
     with open(seam_points_path, "r", encoding="utf-8") as f:
         seam_points = json.load(f)
     with open(stitching_path, "r", encoding="utf-8") as f:
@@ -242,6 +242,8 @@ def build_stitched_garment(
     _tag_vertex_groups(objs)
     _apply_transforms(objs)
     merged = _join_objects(objs, target_name="garment")
+    # Panels are already Delaunay-triangulated with interior grid seed points
+    # from GarmentScaler._triangulate_with_grid -- no topology fixup needed here.
 
     if boundary_subdivide_cuts > 0:
         _subdivide_boundaries(merged, boundary_subdivide_cuts)
@@ -322,13 +324,13 @@ def build_stitched_garment(
 
     print(f"Stitched {stitched}/{total_seams} seams")
 
-    # Give the cloth solver enough geometry to form smooth wrinkles/folds
-    # instead of sharp, low-poly creases -- subdivides the panel faces AND
-    # the new loose sewing edges together in one pass.
+    # Light global subdivision for wrinkle detail. The base panel mesh already
+    # has uniform 20 mm cells from GarmentScaler, so only 2 cuts are needed —
+    # previous 8-cut approach amplified boundary-cell size irregularities.
     if wrinkle_subdivide_cuts > 0:
         bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.mesh.subdivide(number_cuts=wrinkle_subdivide_cuts)
-        print(f"  Subdivided whole mesh ({wrinkle_subdivide_cuts} cuts) for wrinkle resolution")
+        bpy.ops.mesh.subdivide(number_cuts=wrinkle_subdivide_cuts, smoothness=0)
+        print(f"  Cloth grid subdivision: {wrinkle_subdivide_cuts} cuts")
 
     bpy.ops.object.mode_set(mode='OBJECT')
     return merged
@@ -359,4 +361,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

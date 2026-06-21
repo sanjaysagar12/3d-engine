@@ -1,7 +1,6 @@
 """
 Pipeline step: invoke Blender (background mode) to subdivide garment panel
-boundaries and stitch panels together with real sewing edges, replacing the
-old filled-triangle seam mesh approach.
+boundaries and stitch panels together with real sewing edges.
 """
 import json
 import os
@@ -15,18 +14,14 @@ _SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "blender_scripts", 
 class BlenderStitcher:
     """Runs engine/blender_scripts/stitch_garment.py inside Blender."""
 
-    def __init__(self, blender_exe: str, boundary_subdivide_cuts: int = 8, wrinkle_subdivide_cuts: int = 2):
+    def __init__(self, blender_exe: str, boundary_subdivide_cuts: int = 8,
+                 wrinkle_subdivide_cuts: int = 2):
         self.blender_exe = blender_exe
         self.boundary_subdivide_cuts = boundary_subdivide_cuts
         self.wrinkle_subdivide_cuts = wrinkle_subdivide_cuts
 
-    def run(
-        self,
-        panels_glb: str,
-        seam_points_json: str,
-        stitching_json: str,
-        out_glb: str,
-    ) -> str:
+    def run(self, panels_glb: str, seam_points_json: str,
+            stitching_json: str, out_glb: str) -> str:
         if not os.path.exists(self.blender_exe):
             raise FileNotFoundError(f"Blender executable not found: {self.blender_exe}")
 
@@ -48,7 +43,7 @@ class BlenderStitcher:
         script_path = os.path.abspath(_SCRIPT_PATH)
         cmd = [self.blender_exe, "--background", "--python", script_path, "--", cfg_path]
 
-        print(f"  Running Blender: {' '.join(cmd)}")
+        print(f"  Running Blender (stitch): {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=True, text=True)
         print(result.stdout)
         if result.returncode != 0:

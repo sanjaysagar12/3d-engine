@@ -1,7 +1,6 @@
 """
-Pipeline step: invoke Blender (background mode) to stitch the garment panels
-and run a Cloth simulation -- with sewing springs enabled -- to drape the
-garment onto the avatar.
+Pipeline step: invoke Blender (background mode) to run a Cloth simulation
+on an already-stitched garment, draping it onto the avatar.
 """
 import json
 import os
@@ -15,21 +14,22 @@ _SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "blender_scripts", 
 
 
 class ClothDraper:
-    """Runs engine/blender_scripts/drape_garment.py inside Blender."""
+    """Runs engine/blender_scripts/drape_garment.py inside Blender.
+
+    Expects a pre-stitched garment GLB (produced by BlenderStitcher) and an
+    avatar OBJ.  Runs Blender's cloth simulation (sewing springs + collision)
+    and exports both a draped GLB and an optional .blend with baked cache.
+    """
 
     def __init__(
         self,
         blender_exe: str,
-        boundary_subdivide_cuts: int = 8,
-        wrinkle_subdivide_cuts: int = 2,
-        sim_frames: int = 180,
+        sim_frames: int = 150,
         sewing_force_max: float = 3.0,
-        quality: int = 20,
+        quality: int = 10,
         mass: float = 0.3,
     ):
         self.blender_exe = blender_exe
-        self.boundary_subdivide_cuts = boundary_subdivide_cuts
-        self.wrinkle_subdivide_cuts = wrinkle_subdivide_cuts
         self.sim_frames = sim_frames
         self.sewing_force_max = sewing_force_max
         self.quality = quality
@@ -37,9 +37,7 @@ class ClothDraper:
 
     def run(
         self,
-        panels_glb: str,
-        seam_points_json: str,
-        stitching_json: str,
+        stitched_glb: str,
         avatar_obj: str,
         out_glb: str,
         blend_out: str = None,
@@ -47,21 +45,14 @@ class ClothDraper:
         if not os.path.exists(self.blender_exe):
             raise FileNotFoundError(f"Blender executable not found: {self.blender_exe}")
 
-        # Convert avatar OBJ -> GLB so Blender imports it via the glTF
-        # path (reliable Y-up -> Z-up conversion) instead of the OBJ
-        # importer, whose up_axis/forward_axis args don't actually rotate
-        # the data the same way -- verified empirically.
-        avatar_glb = os.path.splitext(os.path.abspath(avatar_obj))[0] + "_for_drape.glb"
-        trimesh.load(avatar_obj, force="mesh").export(avatar_glb)
+        avatar_obj_abs = os.path.abspath(avatar_obj)
+        avatar_glb = os.path.splitext(avatar_obj_abs)[0] + "_for_drape.glb"
+        trimesh.load(avatar_obj_abs, force="mesh").export(avatar_glb)
 
         config = {
-            "panels_glb": os.path.abspath(panels_glb),
-            "seam_points_json": os.path.abspath(seam_points_json),
-            "stitching_json": os.path.abspath(stitching_json),
+            "stitched_glb": os.path.abspath(stitched_glb),
             "avatar_glb": avatar_glb,
             "out_glb": os.path.abspath(out_glb),
-            "boundary_subdivide_cuts": self.boundary_subdivide_cuts,
-            "wrinkle_subdivide_cuts": self.wrinkle_subdivide_cuts,
             "sim_frames": self.sim_frames,
             "sewing_force_max": self.sewing_force_max,
             "quality": self.quality,
@@ -82,8 +73,11 @@ class ClothDraper:
         print(f"  Running Blender (drape): {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=True, text=True)
         print(result.stdout)
-        if result.returncode != 0:
+        if result.stderr.strip():
+            print("--- Blender stderr ---")
             print(result.stderr)
+            print("----------------------")
+        if result.returncode != 0:
             raise RuntimeError(f"Blender draping failed (exit {result.returncode})")
 
         os.unlink(cfg_path)

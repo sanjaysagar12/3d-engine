@@ -20,7 +20,7 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 import trimesh
 import yaml
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
 
 from .pieces_to_glb import _vertices_to_coords, _random_color
 
@@ -67,7 +67,7 @@ class GarmentScaler:
     # ------------------------------------------------------------------
     def compute_scale_factors(self) -> Dict[str, Tuple[float, float]]:
         """Return {piece_name: (sx, sy)} scale factors."""
-        ease = 1.05
+        ease = 1.20
         cm_to_mm = 10.0
 
         rules = {
@@ -120,14 +120,111 @@ class GarmentScaler:
         mesh.apply_transform(S)
         mesh.apply_translation(c)
 
+    @staticmethod
+    def _triangulate_with_grid(
+        poly: Polygon, cloth_rows: int, cloth_cols: int
+    ):
+        """Uniform grid-clipped triangulation for even cloth mesh density.
+
+        Clips a regular cloth_rows × cloth_cols grid to the panel polygon using
+        Shapely intersection. Full interior cells become clean diagonal-split quads
+        (2 triangles, no centroid vertex). Partial boundary cells are fan-triangulated
+        from their centroid. Adjacent cells share vertices via key-based deduplication.
+
+        This produces a regular, even mesh that Blender subdivision refines uniformly
+        — unlike Delaunay which clusters small triangles near boundary vertices and
+        leaves large irregular triangles in the interior.
+        """
+        try:
+            from shapely.geometry import box as shapely_box
+        except ImportError:
+            verts2d, faces = trimesh.creation.triangulate_polygon(poly)
+            return np.column_stack([verts2d, np.zeros(len(verts2d))]), faces
+
+        minx, miny, maxx, maxy = poly.bounds
+        if cloth_rows < 1 or cloth_cols < 1 or (maxx - minx) < 1e-9 or (maxy - miny) < 1e-9:
+            verts2d, faces = trimesh.creation.triangulate_polygon(poly)
+            return np.column_stack([verts2d, np.zeros(len(verts2d))]), faces
+
+        dx = (maxx - minx) / cloth_cols
+        dy = (maxy - miny) / cloth_rows
+
+        snap_x = dx * 1e-5
+        snap_y = dy * 1e-5
+        vert_list: list = []
+        vert_map: dict = {}
+
+        def add_vert(x: float, y: float) -> int:
+            key = (int(round(x / snap_x)), int(round(y / snap_y)))
+            if key not in vert_map:
+                vert_map[key] = len(vert_list)
+                vert_list.append((float(x), float(y)))
+            return vert_map[key]
+
+        all_tris: list = []
+
+        for i in range(cloth_rows):
+            for j in range(cloth_cols):
+                x0 = minx + j * dx
+                y0 = miny + i * dy
+                x1 = x0 + dx
+                y1 = y0 + dy
+                cell = shapely_box(x0, y0, x1, y1)
+                clipped = poly.intersection(cell)
+                if clipped.is_empty or clipped.area < 1e-12:
+                    continue
+
+                geoms = (
+                    [clipped] if clipped.geom_type == 'Polygon'
+                    else [g for g in clipped.geoms if hasattr(g, 'exterior')]
+                    if clipped.geom_type in ('MultiPolygon', 'GeometryCollection')
+                    else []
+                )
+                for p in geoms:
+                    if p.is_empty:
+                        continue
+                    pts = list(p.exterior.coords[:-1])
+                    n = len(pts)
+                    if n < 3:
+                        continue
+                    if n == 4:
+                        # Full interior quad → two clean diagonal triangles
+                        a = add_vert(*pts[0])
+                        b = add_vert(*pts[1])
+                        c = add_vert(*pts[2])
+                        d = add_vert(*pts[3])
+                        all_tris.append((a, b, c))
+                        all_tris.append((a, c, d))
+                    else:
+                        # Boundary-clipped polygon → fan from centroid
+                        cx, cy = p.centroid.x, p.centroid.y
+                        ctr = add_vert(cx, cy)
+                        idxs = [add_vert(x, y) for x, y in pts]
+                        for k in range(n):
+                            a, b = idxs[k], idxs[(k + 1) % n]
+                            if a != b and a != ctr and b != ctr:
+                                all_tris.append((a, b, ctr))
+
+        if not all_tris:
+            verts2d, faces = trimesh.creation.triangulate_polygon(poly)
+            return np.column_stack([verts2d, np.zeros(len(verts2d))]), faces
+
+        verts = np.array(vert_list, dtype=np.float64)
+        faces = np.array(all_tris, dtype=np.int32)
+        return np.column_stack([verts, np.zeros(len(verts))]), faces
+
     def _build_panel_mesh(
-        self, name: str, scale_factors: Dict[str, Tuple[float, float]], flat: bool = False
+        self, name: str, scale_factors: Dict[str, Tuple[float, float]],
+        flat: bool = False, cloth_rows: int = 6, cloth_cols: int = 6
     ) -> Optional[trimesh.Trimesh]:
         """Build a single panel mesh (Y-flipped, scaled, NOT translated).
 
         flat=False -> solid extruded slab (for visualization GLBs).
-        flat=True  -> single-layer triangulated sheet with real open
-                      boundary edges (for the Blender stitching step).
+        flat=True  -> single-layer mesh seeded with a cloth_rows x cloth_cols
+                      interior grid (Delaunay triangulation) so the cloth sim
+                      has uniform row/col topology instead of fan-triangulation
+                      starburst. Boundary vertices are preserved at their exact
+                      positions for seam stitching.
         """
         info = self.metadata.get(name)
         if not info:
@@ -139,8 +236,19 @@ class GarmentScaler:
 
         try:
             if flat:
-                verts2d, faces = trimesh.creation.triangulate_polygon(poly)
-                verts3d = np.column_stack([verts2d, np.zeros(len(verts2d))])
+                # Fixed 20 mm target cell gives uniform mesh density across all
+                # panels regardless of size. The old formula derived cell size
+                # from cloth_rows/cols per-panel, leaving boundary fan triangles
+                # proportionally large compared to interior cells on thin/small
+                # panels — causing stiff, unsubdivided patches after draping.
+                sx, sy = scale_factors.get(name, (1.0, 1.0))
+                bminx, bminy, bmaxx, bmaxy = poly.bounds
+                panel_w = (bmaxx - bminx) * abs(sx)
+                panel_h = (bmaxy - bminy) * abs(sy)
+                target_cell_mm = 20.0
+                p_cols = max(2, round(panel_w / target_cell_mm))
+                p_rows = max(2, round(panel_h / target_cell_mm))
+                verts3d, faces = self._triangulate_with_grid(poly, p_rows, p_cols)
                 mesh = trimesh.Trimesh(vertices=verts3d, faces=faces, process=False)
             else:
                 mesh = trimesh.creation.extrude_polygon(poly, height=self.extrusion_height)
@@ -301,7 +409,8 @@ class GarmentScaler:
     # Flat panels + seam point coordinates, for the Blender stitching step
     # ------------------------------------------------------------------
     def export_panels_for_stitching(
-        self, out_panels_glb: str, out_seam_points_json: str
+        self, out_panels_glb: str, out_seam_points_json: str,
+        cloth_rows: int = 6, cloth_cols: int = 6,
     ) -> Tuple[str, str]:
         """
         Export each panel as a flat, single-layer mesh (real open boundary
@@ -316,7 +425,10 @@ class GarmentScaler:
 
         built_meshes: Dict[str, trimesh.Trimesh] = {}
         for name in panels:
-            mesh = self._build_panel_mesh(name, scale_factors, flat=True)
+            mesh = self._build_panel_mesh(
+                name, scale_factors, flat=True,
+                cloth_rows=cloth_rows, cloth_cols=cloth_cols,
+            )
             if mesh is not None:
                 built_meshes[name] = mesh
 
