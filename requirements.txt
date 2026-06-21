@@ -1,0 +1,10 @@
+numpy
+trimesh[all]
+shapely
+mapbox_earcut
+cairosvg
+svgelements
+lxml
+pillow
+torch
+smplx

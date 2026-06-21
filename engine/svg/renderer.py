@@ -57,8 +57,13 @@ class SVGRenderer:
         # Generate points circles SVG
         points_svg = ""
         for point in points:
-            points_svg += f'    <circle id="{point["id"]}" cx="{point["x"]:.2f}" cy="{point["y"]:.2f}" r="1" class="point" />\n'
-            points_svg += f'    <text x="{point["x"]:.2f}" y="{point["y"]-1.5:.2f}" class="point-label">{point["id"]}</text>\n'
+            # Draw background rect for label
+            label_id = point["id"]
+            points_svg += f'    <circle id="{label_id}" cx="{point["x"]:.2f}" cy="{point["y"]:.2f}" r="3.5" class="point" />\n'
+            # Add white background rectangle for text (larger for 2+ digit IDs)
+            points_svg += f'    <rect x="{point["x"]-8:.2f}" y="{point["y"]-5:.2f}" width="16" height="10" class="label-bg" />\n'
+            # Add text label
+            points_svg += f'    <text x="{point["x"]:.2f}" y="{point["y"]:.2f}" class="point-label" dominant-baseline="middle">{label_id}</text>\n'
 
         svg_content = f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg"
@@ -76,14 +81,20 @@ class SVGRenderer:
       .point {{
         fill: #ff6b6b;
         stroke: #c92a2a;
-        stroke-width: 0.3;
+        stroke-width: 1;
+      }}
+      .label-bg {{
+        fill: white;
+        stroke: #ffcccc;
+        stroke-width: 0.2;
       }}
       .point-label {{
         font-family: Arial, sans-serif;
-        font-size: 1.5px;
-        fill: #c92a2a;
+        font-size: 6px;
+        fill: #000000;
         font-weight: bold;
         pointer-events: none;
+        text-anchor: middle;
       }}
     </style>
   </defs>
