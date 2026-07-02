@@ -11,6 +11,7 @@ from engine.pipeline.garment_scaler import GarmentScaler
 from engine.pipeline.avatar_creator import AvatarCreator
 from engine.pipeline.blender_stitcher import BlenderStitcher
 from engine.pipeline.cloth_draper import ClothDraper
+from engine.pipeline.style3d_draper import Style3DDraper
 
 def main():
     """Main entry point: full 2D to 3D garment pipeline."""
@@ -21,6 +22,12 @@ def main():
     measurement_json = "C:\\yoko\\3d-engine\\asserts\\measurement.json"
     smplx_model_path = "models"
     blender_exe = "C:\\Program Files\\Blender Foundation\\Blender 5.1\\blender.exe"
+    style3d_exe = "C:\\Program Files\\Style3D\\Style3D.exe"
+    # Optional pre-sewn Style3D pattern (.sproj/.sgar/.pxf) authored once in
+    # Style3D Studio. Without it, the Style3D layer falls back to the raw
+    # flat panels and simulates an UNSTITCHED garment (see Style3DDraper).
+    style3d_garment_source = None
+    style3d_garment_source_type = None  # "sproj" | "sgar" | "pxf"
     project_name = "aaron"
     output_dir = os.path.join("dist", project_name)
 
@@ -138,6 +145,33 @@ def main():
             )
         else:
             print(f"\n! Skipping Steps 8-9: Blender not found at {blender_exe}")
+
+        # Step 9b: second draping/stitching layer — same avatar + panels,
+        # run through Style3D Studio's `spy` API instead of Blender. Unlike
+        # the Blender steps this can't run headless (no confirmed CLI script
+        # flag for Style3D.exe); it writes a config + prints instructions to
+        # run engine/style3d_scripts/drape_garment_style3d.py from Style3D
+        # Studio's own Script console. See Style3DDraper's docstring for the
+        # sewing caveat (stitched only if style3d_garment_source is set).
+        if os.path.exists(style3d_exe):
+            print(f"\n--- Step 9b: Draping Garment on Avatar (Style3D) ---")
+            draped_out_style3d = os.path.join(output_dir, "garment_draped_style3d.glb")
+            style3d_draper = Style3DDraper(
+                style3d_exe=style3d_exe,
+                simulation_mode="Normal",
+                velocity_converged_bound=0.5,
+                gravity_factor=1.0,
+                simulation_timeout=60.0,
+            )
+            style3d_draper.run(
+                avatar_obj=avatar_obj,
+                out_glb=draped_out_style3d,
+                panels_glb=panels_glb,
+                garment_source=style3d_garment_source,
+                garment_source_type=style3d_garment_source_type,
+            )
+        else:
+            print(f"\n! Skipping Step 9b: Style3D not found at {style3d_exe}")
     else:
         print(f"\n! Skipping Step 6: measurements or avatar not available")
 

@@ -3,3 +3,5 @@ dist
 __pycache__
 *.pyc
 models
+engine/style3d_scripts/_drape_config.json
+engine/style3d_scripts/_drape_status.json
