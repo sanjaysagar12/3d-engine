@@ -3,6 +3,7 @@ import json
 from ..parser.freesewing_parser import FreeSewingParser
 from ..svg.renderer import SVGRenderer
 from ..svg.converter import SVGConverter
+from ..svg.dxf_exporter import export_piece_dxf
 
 class PieceExtractor:
     """Step 1: Extract and write standalone pieces from an SVG."""
@@ -18,8 +19,10 @@ class PieceExtractor:
         # Create subdirectories
         svg_dir = os.path.join(self.output_dir, "svg")
         png_dir = os.path.join(self.output_dir, "png")
+        dxf_dir = os.path.join(self.output_dir, "dxf")
         os.makedirs(svg_dir, exist_ok=True)
         os.makedirs(png_dir, exist_ok=True)
+        os.makedirs(dxf_dir, exist_ok=True)
         
         metadata = {}
         for piece in pieces:
@@ -36,6 +39,10 @@ class PieceExtractor:
                 print(f"  [OK] {piece.name}.svg -> png/{piece.name}.png")
             else:
                 print(f"  [ERROR] Failed to convert {piece.name} to PNG")
+
+            # Export DXF
+            dxf_file = os.path.join(dxf_dir, f"{piece.name}.dxf")
+            export_piece_dxf(piece, dxf_file)
                 
             # Get vertices and merge point IDs into them
             vertices = piece.vertices()
@@ -60,6 +67,7 @@ class PieceExtractor:
                 "vertices": vertices,
                 "output_file": f"svg/{piece.name}.svg",
                 "png_file": f"png/{piece.name}.png",
+                "dxf_file": f"dxf/{piece.name}.dxf",
             }
             
         meta_path = os.path.join(self.output_dir, "pieces_metadata.json")

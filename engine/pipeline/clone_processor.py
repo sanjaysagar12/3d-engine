@@ -4,6 +4,7 @@ from ..parser.freesewing_parser import FreeSewingParser
 from ..operations.cloner import PieceCloner
 from ..svg.renderer import SVGRenderer
 from ..svg.converter import SVGConverter
+from ..svg.dxf_exporter import export_piece_dxf
 
 class CloneProcessor:
     """Pipeline step to process piece clones and mirrored versions."""
@@ -27,8 +28,10 @@ class CloneProcessor:
         
         svg_dir = os.path.join(self.output_dir, "svg")
         png_dir = os.path.join(self.output_dir, "png")
+        dxf_dir = os.path.join(self.output_dir, "dxf")
         os.makedirs(svg_dir, exist_ok=True)
         os.makedirs(png_dir, exist_ok=True)
+        os.makedirs(dxf_dir, exist_ok=True)
         
         # Process each clone
         for clone_piece in clones:
@@ -41,6 +44,10 @@ class CloneProcessor:
             # Convert to PNG
             png_file = os.path.join(png_dir, f"{clone_piece.name}.png")
             success = SVGConverter.svg_to_png(svg_content, png_file, dpi=96)
+
+            # Export DXF
+            dxf_file = os.path.join(dxf_dir, f"{clone_piece.name}.dxf")
+            export_piece_dxf(clone_piece, dxf_file)
             
             # Get bounds and vertices
             min_x, min_y, max_x, max_y = clone_piece.bounds()
@@ -63,6 +70,7 @@ class CloneProcessor:
                 "vertices": vertices,
                 "output_file": f"svg/{clone_piece.name}.svg",
                 "png_file": f"png/{clone_piece.name}.png",
+                "dxf_file": f"dxf/{clone_piece.name}.dxf",
             }
             
             status = "[OK]" if success else "[ERROR]"
